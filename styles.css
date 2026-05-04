@@ -40,6 +40,9 @@ body {
   min-height: 100dvh;
   font-family: var(--font-display);
   color: var(--clr-text);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   background:
     conic-gradient(
       from var(--bg-angle) at 55% 45%,

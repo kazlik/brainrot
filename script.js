@@ -5,8 +5,15 @@ const KONAMI = [
   'KeyB','KeyA',
 ];
 
-const buffer = [];
+const KONAMI_TOUCH = ['up','up','down','down','left','right','left','right','tap','tap'];
+
+const buffer      = [];
+const touchBuffer = [];
 let active = false;
+
+function tryToggle() {
+  active ? deactivateBrainrot() : activateBrainrot();
+}
 
 window.addEventListener('keydown', e => {
   buffer.push(e.code);
@@ -14,11 +21,49 @@ window.addEventListener('keydown', e => {
 
   if (buffer.length === KONAMI.length && buffer.every((k, i) => k === KONAMI[i])) {
     buffer.length = 0;
-    active ? deactivateBrainrot() : activateBrainrot();
+    tryToggle();
     return;
   }
 
   if (e.code === 'Escape' && active) deactivateBrainrot();
+});
+
+/* ── Konami touch (↑↑↓↓←→←→ + 2× tap) ── */
+let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+const SWIPE_MIN    = 30;
+const TAP_MAX_DIST = 10;
+const TAP_MAX_TIME = 400;
+
+function pushTouch(sym) {
+  touchBuffer.push(sym);
+  if (touchBuffer.length > KONAMI_TOUCH.length) touchBuffer.shift();
+  if (touchBuffer.length === KONAMI_TOUCH.length && touchBuffer.every((k, i) => k === KONAMI_TOUCH[i])) {
+    touchBuffer.length = 0;
+    tryToggle();
+  }
+}
+
+window.addEventListener('pointerdown', e => {
+  if (!e.isPrimary || (e.pointerType !== 'touch' && e.pointerType !== 'pen')) return;
+  touchStartX    = e.clientX;
+  touchStartY    = e.clientY;
+  touchStartTime = Date.now();
+});
+
+window.addEventListener('pointerup', e => {
+  if (!e.isPrimary || (e.pointerType !== 'touch' && e.pointerType !== 'pen')) return;
+  const dx   = e.clientX - touchStartX;
+  const dy   = e.clientY - touchStartY;
+  const dist = Math.hypot(dx, dy);
+  const dt   = Date.now() - touchStartTime;
+
+  if (dist < TAP_MAX_DIST && dt < TAP_MAX_TIME) { pushTouch('tap'); return; }
+  if (dist < SWIPE_MIN) return;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    pushTouch(dx > 0 ? 'right' : 'left');
+  } else {
+    pushTouch(dy > 0 ? 'down' : 'up');
+  }
 });
 
 /* ── Token data ── */
