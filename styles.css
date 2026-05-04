@@ -69,6 +69,7 @@ body {
 }
 
 body.brainrot-mode {
+  cursor: none;
   background:
     conic-gradient(
       from var(--bg-angle) at 50% 50%,
@@ -86,8 +87,8 @@ body.brainrot-mode {
 @media (prefers-reduced-motion: no-preference) {
   body.brainrot-mode {
     animation:
-      bg-rotate-fast 2s linear infinite,
-      hue-cycle 0.6s linear infinite;
+      bg-rotate-fast 1.2s linear infinite,
+      hue-cycle 0.4s linear infinite;
   }
 }
 
@@ -126,7 +127,7 @@ body.brainrot-mode h1#main-title {
 
 @media (prefers-reduced-motion: no-preference) {
   body.brainrot-mode h1#main-title {
-    animation: glitch-text 0.4s infinite;
+    animation: glitch-text 0.3s infinite;
   }
 
   body.brainrot-mode #tagline {
@@ -192,10 +193,20 @@ body.brainrot-mode #brainrot-center {
   display: flex;
 }
 
+/* ── Doge wrapper + satellite ring ── */
+#doge-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 #doge {
   font-size: clamp(4rem, 12vw, 8rem);
   line-height: 1;
   filter: drop-shadow(0 0 20px rgba(255, 220, 0, 0.8));
+  position: relative;
+  z-index: 2;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -203,6 +214,45 @@ body.brainrot-mode #brainrot-center {
     animation: spin-pulse 1s linear infinite;
   }
 }
+
+#multi-doge-ring {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 320%;
+  aspect-ratio: 1;
+  pointer-events: none;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+}
+
+body.brainrot-mode #multi-doge-ring {
+  display: block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body.brainrot-mode #multi-doge-ring {
+    animation: ring-spin 3s linear infinite;
+  }
+}
+
+@keyframes ring-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.satellite-doge {
+  position: absolute;
+  font-size: clamp(1.8rem, 5vmin, 3rem);
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(255, 200, 0, 0.7));
+}
+
+.satellite-doge:nth-child(1) { top: 0; left: 50%; transform: translateX(-50%); }
+.satellite-doge:nth-child(2) { top: 50%; right: 0; transform: translateY(-50%); }
+.satellite-doge:nth-child(3) { bottom: 0; left: 50%; transform: translateX(-50%); }
+.satellite-doge:nth-child(4) { top: 50%; left: 0; transform: translateY(-50%); }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -261,11 +311,11 @@ body.brainrot-mode #glitch-overlay {
 
 @media (prefers-reduced-motion: no-preference) {
   #glitch-overlay::before {
-    animation: glitch-band-red 4s infinite;
+    animation: glitch-band-red 3s infinite;
   }
 
   #glitch-overlay::after {
-    animation: glitch-band-cyan 3.7s infinite;
+    animation: glitch-band-cyan 2.7s infinite;
   }
 }
 
@@ -315,13 +365,122 @@ body.brainrot-mode #glitch-overlay {
   100% { opacity: 0; transform: translateY(-120px) rotate(var(--rot, 0deg)) scale(1.1); }
 }
 
+/* ── Toilet rain ── */
+#toilet-rain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 35;
+  overflow: hidden;
+}
+
+.toilet-drop {
+  position: absolute;
+  top: -10vh;
+  font-size: clamp(2rem, 6vw, 5rem);
+  line-height: 1;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toilet-drop {
+    animation: toilet-fall var(--dur, 3s) linear forwards;
+  }
+}
+
+@keyframes toilet-fall {
+  0%   { opacity: 0; transform: translateY(0) rotate(var(--rot, 0deg)); }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(120vh) rotate(calc(var(--rot, 0deg) + 180deg)); }
+}
+
+/* ── Splash burst ── */
+#splash-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  overflow: hidden;
+}
+
+.splash-burst {
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 18vw, 12rem);
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #ff0050, #ff8c00, #ffff00, #00ff88, #00cfff, #bf00ff, #ff0050);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .splash-burst {
+    animation: splash-pop 1.4s ease-out forwards;
+  }
+}
+
+@keyframes splash-pop {
+  0%   { opacity: 0; transform: scale(0.2) rotate(-12deg); }
+  20%  { opacity: 1; transform: scale(1.3) rotate(5deg); }
+  50%  { opacity: 1; transform: scale(1.0) rotate(-3deg); }
+  80%  { opacity: 0.9; transform: scale(1.1) rotate(4deg); }
+  100% { opacity: 0; transform: scale(0.7) rotate(-8deg); }
+}
+
+/* ── Cursor trail ── */
+#cursor-trail {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  overflow: hidden;
+}
+
+.trail-dot {
+  position: fixed;
+  font-size: clamp(1rem, 2.5vw, 1.8rem);
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .trail-dot {
+    animation: trail-fade 0.6s ease-out forwards;
+  }
+}
+
+@keyframes trail-fade {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+}
+
+/* ── Custom cursor ── */
+#cursor-toilet {
+  display: none;
+  position: fixed;
+  font-size: 1.8rem;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  user-select: none;
+}
+
 /* ── Footer / Marquee ── */
 footer {
   display: none;
   padding: 0.75rem 1rem 1.25rem;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.4rem;
   position: relative;
   z-index: 10;
 }
@@ -356,11 +515,20 @@ body.brainrot-mode footer {
   .marquee-track {
     animation: marquee 28s linear infinite;
   }
+
+  .marquee-track-reverse {
+    animation: marquee-reverse 22s linear infinite;
+  }
 }
 
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
+}
+
+@keyframes marquee-reverse {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
 }
 
 .konami-hint {
