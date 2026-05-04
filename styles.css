@@ -433,11 +433,11 @@ body.brainrot-mode #glitch-overlay {
 }
 
 @keyframes splash-pop {
-  0%   { opacity: 0; transform: scale(0.2) rotate(-12deg); }
-  20%  { opacity: 1; transform: scale(1.3) rotate(5deg); }
-  50%  { opacity: 1; transform: scale(1.0) rotate(-3deg); }
-  80%  { opacity: 0.9; transform: scale(1.1) rotate(4deg); }
-  100% { opacity: 0; transform: scale(0.7) rotate(-8deg); }
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-12deg); }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(5deg); }
+  50%  { opacity: 1; transform: translate(-50%, -50%) scale(1.0) rotate(-3deg); }
+  80%  { opacity: 0.9; transform: translate(-50%, -50%) scale(1.1) rotate(4deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.7) rotate(-8deg); }
 }
 
 /* ── Cursor trail ── */

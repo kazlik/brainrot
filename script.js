@@ -171,8 +171,8 @@ function spawnSplashBurst() {
   const el = document.createElement('div');
   el.className = 'splash-burst';
   el.textContent = entry.text;
-  el.style.left = (20 + Math.random() * 55) + '%';
-  el.style.top  = (15 + Math.random() * 55) + '%';
+  el.style.left = (10 + Math.random() * 80) + '%';
+  el.style.top  = (10 + Math.random() * 80) + '%';
   document.getElementById('splash-container').appendChild(el);
   el.addEventListener('animationend', () => el.remove());
   speakSplash(entry);
