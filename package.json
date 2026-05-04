@@ -1,0 +1,10 @@
+{
+  "name": "brainrot",
+  "private": true,
+  "scripts": {
+    "dev": "serve . -p 3000"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}
