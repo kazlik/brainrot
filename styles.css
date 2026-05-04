@@ -71,8 +71,12 @@ body {
   to { --bg-angle: 360deg; }
 }
 
-body.brainrot-mode {
+body.brainrot-mode,
+body.brainrot-mode * {
   cursor: none;
+}
+
+body.brainrot-mode {
   background:
     conic-gradient(
       from var(--bg-angle) at 50% 50%,
