@@ -66,6 +66,37 @@ window.addEventListener('pointerup', e => {
   }
 });
 
+/* ── Speech config ── */
+const SPEECH_CONFIG = {
+  rate: 1.0,
+  pitch: 1.3,
+  volume: 1.0,
+  voicePrefs: {
+    'en-US': ['Samantha', 'Alex', 'Daniel', 'Google US English'],
+    'it-IT': ['Alice', 'Luca', 'Google italiano'],
+  },
+};
+
+let voicesCache = [];
+function loadVoices() {
+  if (!window.speechSynthesis) return;
+  voicesCache = speechSynthesis.getVoices();
+}
+if (window.speechSynthesis) {
+  loadVoices();
+  speechSynthesis.addEventListener('voiceschanged', loadVoices);
+}
+
+function pickVoice(lang) {
+  if (!voicesCache.length) return null;
+  const prefs = SPEECH_CONFIG.voicePrefs[lang] || [];
+  for (const name of prefs) {
+    const v = voicesCache.find(v => v.name === name);
+    if (v) return v;
+  }
+  return voicesCache.find(v => v.lang && v.lang.toLowerCase().startsWith(lang.slice(0, 2).toLowerCase())) || null;
+}
+
 /* ── Token data ── */
 const TOKENS = [
   'tralalero tralala', 'skibidi', 'ohio rizz', 'gyatt', 'fanum tax', 'sigma',
@@ -80,15 +111,21 @@ const TOKENS = [
 ];
 
 const SPLASH_PHRASES = [
-  'SKIBIDI', 'OHIO', '+1 RIZZ', 'L + RATIO', 'GYATT',
-  'NO CAP', 'SIGMA', 'BRRR PATAPIM', 'TUNG TUNG TUNG', 'BOMBARDIRO',
-  'FR FR', 'W RIZZ', '💀', '🚽', 'SLAY',
-];
-
-const VOICE_LINES = [
-  'skibidi', 'ohio', 'rizz', 'gyatt', 'what the dog doin',
-  'sigma', 'no cap', 'brainrot', 'tralalero tralala',
-  'tung tung tung sahur', 'bombardiro crocodilo', "it's giving",
+  { text: 'SKIBIDI',        lang: 'en-US' },
+  { text: 'OHIO',           lang: 'en-US' },
+  { text: '+1 RIZZ',        lang: 'en-US', spoken: 'plus one rizz' },
+  { text: 'L + RATIO',      lang: 'en-US', spoken: 'L plus ratio' },
+  { text: 'GYATT',          lang: 'en-US' },
+  { text: 'NO CAP',         lang: 'en-US' },
+  { text: 'SIGMA',          lang: 'en-US' },
+  { text: 'FR FR',          lang: 'en-US', spoken: 'for real for real' },
+  { text: 'W RIZZ',         lang: 'en-US', spoken: 'W rizz' },
+  { text: 'SLAY',           lang: 'en-US' },
+  { text: 'BRRR PATAPIM',   lang: 'it-IT' },
+  { text: 'TUNG TUNG TUNG', lang: 'it-IT' },
+  { text: 'BOMBARDIRO',     lang: 'it-IT' },
+  { text: '💀',             lang: 'en-US', spoken: "I'm dead" },
+  { text: '🚽',             lang: 'en-US', spoken: 'skibidi toilet' },
 ];
 
 const TITLE_CYCLE = ['kazlik', 'skibidi', 'ohio', 'rizz', 'gyatt', 'sigma', '💀', 'tung tung'];
@@ -98,7 +135,6 @@ let tokenInterval  = null;
 let toiletInterval = null;
 let splashInterval = null;
 let titleInterval  = null;
-let voiceTimeout   = null;
 let pointerHandler = null;
 
 /* ── Token spawner ── */
@@ -131,14 +167,27 @@ function spawnToiletDrop() {
 /* ── Splash burst ── */
 function spawnSplashBurst() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const phrase = SPLASH_PHRASES[Math.floor(Math.random() * SPLASH_PHRASES.length)];
+  const entry = SPLASH_PHRASES[Math.floor(Math.random() * SPLASH_PHRASES.length)];
   const el = document.createElement('div');
   el.className = 'splash-burst';
-  el.textContent = phrase;
+  el.textContent = entry.text;
   el.style.left = (20 + Math.random() * 55) + '%';
   el.style.top  = (15 + Math.random() * 55) + '%';
   document.getElementById('splash-container').appendChild(el);
   el.addEventListener('animationend', () => el.remove());
+  speakSplash(entry);
+}
+
+function speakSplash(entry) {
+  if (!entry.lang || !window.speechSynthesis) return;
+  const utt = new SpeechSynthesisUtterance(entry.spoken || entry.text);
+  utt.lang   = entry.lang;
+  utt.rate   = SPEECH_CONFIG.rate;
+  utt.pitch  = Math.random() * 2;
+  utt.volume = SPEECH_CONFIG.volume;
+  const v = pickVoice(entry.lang);
+  if (v) utt.voice = v;
+  speechSynthesis.speak(utt);
 }
 
 /* ── Multi-doge satellite ring ── */
@@ -210,18 +259,7 @@ function teardownCursorTrail() {
 }
 
 /* ── Speech synthesis ── */
-function scheduleSpeech() {
-  if (!window.speechSynthesis) return;
-  const phrase = VOICE_LINES[Math.floor(Math.random() * VOICE_LINES.length)];
-  const utt    = new SpeechSynthesisUtterance(phrase);
-  utt.rate  = 1.4;
-  utt.pitch = 1.5;
-  speechSynthesis.speak(utt);
-  voiceTimeout = setTimeout(scheduleSpeech, 5000 + Math.random() * 3000);
-}
-
 function stopSpeech() {
-  if (voiceTimeout) { clearTimeout(voiceTimeout); voiceTimeout = null; }
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
@@ -374,7 +412,6 @@ function activateBrainrot() {
   populateMultiDoge();
   setupCursorTrail();
   startTitleCycle();
-  scheduleSpeech();
 
   tokenInterval = setInterval(() => {
     if (active) { spawnToken(); spawnToken(); spawnToken(); }
