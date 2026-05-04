@@ -326,41 +326,86 @@ function stopSpeech() {
 
 /* ── Web Audio music ── */
 let audioCtx       = null;
+let masterBus      = null;
 let schedulerTimer = null;
 let nextStepTime   = 0;
 let currentStep    = 0;
 
-const BPM   = 150;
+const BPM   = 170;
 const BEAT  = 60 / BPM;
 const STEP  = BEAT / 4;
-const STEPS = 32;
+const STEPS = 64;
 
 const noteHz = n => 440 * Math.pow(2, (n - 69) / 12);
 
-const KICK    = [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0];
-const SNARE   = [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0];
-const HIHAT   = [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0];
-const COWBELL = [0,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,0,0];
+// Patterns: 64 steps = 4 bars × 16 steps
 // A minor pentatonic: A2=45 C3=48 E3=52 G3=55 A3=57
+const KICK = [
+  1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0,
+  1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0,
+];
+const SNARE = [
+  0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0,
+  0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0,
+];
+const HIHAT = [
+  0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0,
+  0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0,
+];
+// 808-style cowbell on every 8th note — agresivně otravné
+const COWBELL = [
+  1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0,
+  1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0,
+];
 const BASS = [
   45, 0, 0, 0,  48, 0, 0, 0,  52, 0, 0, 0,  55, 0, 0, 0,
   45, 0, 0, 0,  52, 0, 0, 0,  48, 0, 0, 0,  57, 0, 0, 0,
+  55, 0, 0, 0,  48, 0, 0, 0,  57, 0, 0, 0,  52, 0, 0, 0,
+  45, 0,45, 0,  48, 0,52, 0,  55, 0, 0, 0,  45, 0, 0, 0,
 ];
-// A3=57 C4=60 E4=64 G4=67 A4=69
+// A3=57 C4=60 E4=64 G4=67 A4=69 E5=76 A5=81 C5=72
 const LEAD = [
-  57, 0, 60, 0,  64, 0, 67, 0,  69, 0, 67, 0,  64, 0, 60, 0,
-  57, 0, 64, 0,  60, 0, 69, 0,  67, 0, 64, 0,  57, 0,  0, 0,
+  57, 0,60, 0,  64, 0,67, 0,  69, 0,67, 0,  64, 0,60, 0,
+  57, 0,64, 0,  60, 0,69, 0,  67, 0,64, 0,  57, 0, 0, 0,
+  69,67,64,60,  57,60,64,67,  69,76,81,76,  69,67,64, 0,
+  57,64,57,64,  60,69,60,69,  72, 0, 0, 0,  57, 0, 0, 0,
+];
+// Wobble bass: square+LFO na silných dobách
+const WOBBLE_BASS_NOTES = [
+  45, 0, 0, 0,  0, 0, 0, 0,  45, 0, 0, 0,  0, 0, 0, 0,
+  48, 0, 0, 0,  0, 0, 0, 0,  52, 0, 0, 0,  0, 0, 0, 0,
+  45, 0, 0, 0,  0, 0, 0, 0,  55, 0, 0, 0,  0, 0, 0, 0,
+  57, 0, 0, 0,  0, 0, 0, 0,  45, 0,45, 0,  0, 0, 0, 0,
+];
+// Toilet flush sweep na začátku barů 1 a 3
+const FLUSH = [
+  1, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+  1, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+];
+// Robotic vox chop salvy
+const VOX = [
+  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+  1, 1, 1, 1,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
+  1, 1, 1, 1,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,
 ];
 
+const DISTORTION_CURVE = (() => {
+  const n = 256, drive = 30, curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) curve[i] = Math.tanh(drive * (i * 2 / n - 1));
+  return curve;
+})();
+
 function scheduleKick(t) {
-  const ctx  = audioCtx;
-  const osc  = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain); gain.connect(ctx.destination);
+  const osc  = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(masterBus);
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(140, t);
+  osc.frequency.setValueAtTime(160, t);
   osc.frequency.exponentialRampToValueAtTime(40, t + 0.08);
-  gain.gain.setValueAtTime(0.9, t);
+  gain.gain.setValueAtTime(1.0, t);
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
   osc.start(t); osc.stop(t + 0.15);
 }
@@ -375,8 +420,8 @@ function scheduleSnare(t) {
   const filter = ctx.createBiquadFilter();
   filter.type = 'bandpass'; filter.frequency.value = 2200; filter.Q.value = 0.8;
   const gain   = ctx.createGain();
-  gain.gain.setValueAtTime(0.5, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-  src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+  gain.gain.setValueAtTime(0.6, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+  src.connect(filter); filter.connect(gain); gain.connect(masterBus);
   src.start(t); src.stop(t + 0.1);
 }
 
@@ -391,23 +436,24 @@ function scheduleHihat(t) {
   filter.type = 'highpass'; filter.frequency.value = 9000;
   const gain   = ctx.createGain();
   gain.gain.setValueAtTime(0.25, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-  src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+  src.connect(filter); filter.connect(gain); gain.connect(masterBus);
   src.start(t); src.stop(t + 0.06);
 }
 
 function scheduleCowbell(t) {
-  const ctx     = audioCtx;
-  const bufSize = Math.floor(ctx.sampleRate * 0.12);
-  const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-  const data    = buf.getChannelData(0);
-  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
-  const src    = ctx.createBufferSource(); src.buffer = buf;
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass'; filter.frequency.value = 800; filter.Q.value = 12;
-  const gain   = ctx.createGain();
-  gain.gain.setValueAtTime(0.35, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-  src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
-  src.start(t); src.stop(t + 0.2);
+  const ctx = audioCtx;
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0.3, t);
+  masterGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  masterGain.connect(masterBus);
+  [562, 845].forEach(f => {
+    const osc  = ctx.createOscillator();
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'bandpass'; filt.frequency.value = f; filt.Q.value = 15;
+    osc.type = 'square'; osc.frequency.value = f;
+    osc.connect(filt); filt.connect(masterGain);
+    osc.start(t); osc.stop(t + 0.14);
+  });
 }
 
 function scheduleBass(freq, t) {
@@ -418,43 +464,174 @@ function scheduleBass(freq, t) {
   osc.type = 'sawtooth'; osc.frequency.value = noteHz(freq);
   filter.type = 'lowpass'; filter.frequency.value = 800; filter.Q.value = 2;
   gain.gain.setValueAtTime(0.45, t); gain.gain.exponentialRampToValueAtTime(0.001, t + STEP * 3.5);
-  osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+  osc.connect(filter); filter.connect(gain); gain.connect(masterBus);
+  osc.start(t); osc.stop(t + STEP * 4);
+}
+
+function scheduleWobbleBass(midiNote, t) {
+  const ctx     = audioCtx;
+  const osc     = ctx.createOscillator();
+  const filter  = ctx.createBiquadFilter();
+  const gain    = ctx.createGain();
+  const lfo     = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+  osc.type = 'square'; osc.frequency.value = noteHz(midiNote);
+  filter.type = 'lowpass'; filter.frequency.value = 200; filter.Q.value = 8;
+  lfo.type = 'sine'; lfo.frequency.value = 8;
+  lfoGain.gain.value = 700;
+  lfo.connect(lfoGain); lfoGain.connect(filter.frequency);
+  gain.gain.setValueAtTime(0.55, t); gain.gain.exponentialRampToValueAtTime(0.001, t + STEP * 3.5);
+  osc.connect(filter); filter.connect(gain); gain.connect(masterBus);
+  lfo.start(t); lfo.stop(t + STEP * 4);
   osc.start(t); osc.stop(t + STEP * 4);
 }
 
 function scheduleLead(freq, t) {
   const ctx      = audioCtx;
-  const osc1     = ctx.createOscillator();
-  const osc2     = ctx.createOscillator();
-  const gain     = ctx.createGain();
   const baseFreq = noteHz(freq);
-  osc1.type = 'triangle'; osc1.frequency.value = baseFreq;
-  osc2.type = 'triangle'; osc2.frequency.value = baseFreq * Math.pow(2, 15 / 1200);
-  gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.001, t + STEP * 1.8);
-  osc1.connect(gain); osc2.connect(gain); gain.connect(ctx.destination);
-  osc1.start(t); osc1.stop(t + STEP * 2);
-  osc2.start(t); osc2.stop(t + STEP * 2);
+  const shaper   = ctx.createWaveShaper();
+  shaper.curve   = DISTORTION_CURVE;
+  shaper.oversample = '4x';
+  const outGain  = ctx.createGain();
+  outGain.gain.setValueAtTime(0.1, t);
+  outGain.gain.exponentialRampToValueAtTime(0.001, t + STEP * 1.8);
+  shaper.connect(outGain); outGain.connect(masterBus);
+  [-25, 0, 25].forEach(cents => {
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    const f = baseFreq * Math.pow(2, cents / 1200);
+    osc.frequency.setValueAtTime(f, t);
+    if (Math.random() < 0.3) {
+      const wobble = (Math.random() > 0.5 ? 1 : -1) * 50;
+      osc.frequency.linearRampToValueAtTime(baseFreq * Math.pow(2, (cents + wobble) / 1200), t + STEP);
+    }
+    osc.connect(shaper);
+    osc.start(t); osc.stop(t + STEP * 2);
+  });
+}
+
+function scheduleFlush(t) {
+  const ctx     = audioCtx;
+  const dur     = 0.4;
+  const bufSize = Math.floor(ctx.sampleRate * dur);
+  const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data    = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  const src    = ctx.createBufferSource(); src.buffer = buf;
+  const filter = ctx.createBiquadFilter();
+  filter.type  = 'lowpass';
+  filter.frequency.setValueAtTime(4000, t);
+  filter.frequency.exponentialRampToValueAtTime(80, t + dur);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  src.connect(filter); filter.connect(gain); gain.connect(masterBus);
+  src.start(t); src.stop(t + dur + 0.05);
+
+  const blub     = ctx.createOscillator();
+  const blubGain = ctx.createGain();
+  blub.type = 'sine';
+  blub.frequency.setValueAtTime(80, t);
+  blub.frequency.exponentialRampToValueAtTime(25, t + 0.15);
+  blubGain.gain.setValueAtTime(0.5, t); blubGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+  blub.connect(blubGain); blubGain.connect(masterBus);
+  blub.start(t); blub.stop(t + 0.2);
+}
+
+function scheduleBruh(t) {
+  const ctx = audioCtx;
+  const dur = 0.2;
+  [45, 48, 52].forEach(n => {
+    const osc    = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain   = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(noteHz(n), t);
+    osc.frequency.exponentialRampToValueAtTime(noteHz(n - 12), t + dur);
+    filter.type = 'lowpass'; filter.frequency.value = 1200; filter.Q.value = 3;
+    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(filter); filter.connect(gain); gain.connect(masterBus);
+    osc.start(t); osc.stop(t + dur + 0.02);
+  });
+}
+
+function scheduleVoxChop(t) {
+  const ctx        = audioCtx;
+  const VOX_PITCHES = [880, 1100, 1320, 1760];
+  const freq       = VOX_PITCHES[Math.floor(Math.random() * VOX_PITCHES.length)];
+  const osc        = ctx.createOscillator();
+  const lfo        = ctx.createOscillator();
+  const lfoGain    = ctx.createGain();
+  const gain       = ctx.createGain();
+  osc.type = 'square'; osc.frequency.value = freq;
+  lfo.type = 'sine'; lfo.frequency.value = 30;
+  lfoGain.gain.value = 0.06;
+  lfo.connect(lfoGain); lfoGain.connect(gain.gain);
+  gain.gain.setValueAtTime(0.07, t); gain.gain.linearRampToValueAtTime(0.001, t + 0.07);
+  osc.connect(gain); gain.connect(masterBus);
+  lfo.start(t); lfo.stop(t + 0.08);
+  osc.start(t); osc.stop(t + 0.08);
+}
+
+function scheduleRiser(t) {
+  const ctx     = audioCtx;
+  const dur     = BEAT * 4;
+  const bufSize = Math.floor(ctx.sampleRate * dur);
+  const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data    = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  const src    = ctx.createBufferSource(); src.buffer = buf;
+  const filter = ctx.createBiquadFilter();
+  filter.type  = 'lowpass';
+  filter.frequency.setValueAtTime(200, t);
+  filter.frequency.exponentialRampToValueAtTime(8000, t + dur);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.15, t); gain.gain.linearRampToValueAtTime(0.4, t + dur);
+  src.connect(filter); filter.connect(gain); gain.connect(masterBus);
+  src.start(t); src.stop(t + dur + 0.01);
 }
 
 const LOOKAHEAD = 0.1;
 
 function schedulerTick() {
   while (nextStepTime < audioCtx.currentTime + LOOKAHEAD) {
-    const s = currentStep % STEPS;
-    const t = nextStepTime;
-    if (KICK[s])    scheduleKick(t);
-    if (SNARE[s])   scheduleSnare(t);
-    if (HIHAT[s])   scheduleHihat(t);
-    if (COWBELL[s]) scheduleCowbell(t);
-    if (BASS[s])    scheduleBass(BASS[s], t);
-    if (LEAD[s])    scheduleLead(LEAD[s], t);
+    const s   = currentStep % STEPS;
+    const t   = nextStepTime;
+    const bar = Math.floor(currentStep / 16) % 16; // 16-barový cyklus
+
+    const isBuildBar    = bar === 8;
+    const isDropSection = bar >= 9;
+
+    if (!isBuildBar) {
+      if (isDropSection && s % 4 === 0) scheduleKick(t);
+      else if (KICK[s]) scheduleKick(t);
+    }
+
+    if (SNARE[s])              scheduleSnare(t);
+    if (HIHAT[s])              scheduleHihat(t);
+    if (COWBELL[s])            scheduleCowbell(t);
+    if (BASS[s])               scheduleBass(BASS[s], t);
+    if (WOBBLE_BASS_NOTES[s])  scheduleWobbleBass(WOBBLE_BASS_NOTES[s], t);
+    if (LEAD[s])               scheduleLead(LEAD[s], t);
+    if (FLUSH[s])              scheduleFlush(t);
+    if (VOX[s])                scheduleVoxChop(t);
+
+    if (isBuildBar && s === 0)           scheduleRiser(t);
+    if (s % 2 === 0 && Math.random() < 0.1) scheduleBruh(t);
+
     nextStepTime += STEP;
     currentStep++;
   }
 }
 
 function startAudio() {
-  audioCtx = new AudioContext();
+  audioCtx  = new AudioContext();
+  masterBus = audioCtx.createDynamicsCompressor();
+  masterBus.threshold.value = -10;
+  masterBus.knee.value      = 6;
+  masterBus.ratio.value     = 12;
+  masterBus.attack.value    = 0.003;
+  masterBus.release.value   = 0.1;
+  masterBus.connect(audioCtx.destination);
   nextStepTime = audioCtx.currentTime + 0.05;
   currentStep  = 0;
   schedulerTimer = setInterval(schedulerTick, 25);
@@ -463,6 +640,7 @@ function startAudio() {
 function stopAudio() {
   if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  masterBus = null;
 }
 
 /* ── Activate / deactivate ── */
