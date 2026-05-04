@@ -44,7 +44,11 @@ function pushTouch(sym) {
 }
 
 window.addEventListener('pointerdown', e => {
-  if (!e.isPrimary || (e.pointerType !== 'touch' && e.pointerType !== 'pen')) return;
+  if (!e.isPrimary) return;
+
+  if (active) spawnTapBurst(e.clientX, e.clientY);
+
+  if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
   touchStartX    = e.clientX;
   touchStartY    = e.clientY;
   touchStartTime = Date.now();
@@ -130,6 +134,9 @@ const SPLASH_PHRASES = [
 
 const TITLE_CYCLE = ['kazlik', 'skibidi', 'ohio', 'rizz', 'gyatt', 'sigma', '💀', 'tung tung'];
 
+const BURST_EMOJIS = ['🚽', '🗿', '💀', '🐕', '🦈', '🐊', '🍌', '☕', '💅', '🤡', '🇮🇹', '⬆️'];
+const BURST_WORDS  = ['POW', 'BOOM', 'BONK', '💥', 'KAPOW', 'YEET', 'OHIO', 'W RIZZ', 'SKIBIDI'];
+
 /* ── State handles ── */
 let tokenInterval  = null;
 let toiletInterval = null;
@@ -200,6 +207,50 @@ function populateMultiDoge() {
     span.textContent = emoji;
     ring.appendChild(span);
   });
+}
+
+/* ── Tap/click burst ── */
+function spawnTapBurst(x, y) {
+  const container     = document.getElementById('burst-container');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Shockwave ring
+  if (!reducedMotion) {
+    const ring = document.createElement('div');
+    ring.className = 'burst-ring';
+    ring.style.left = x + 'px';
+    ring.style.top  = y + 'px';
+    container.appendChild(ring);
+    ring.addEventListener('animationend', () => ring.remove());
+  }
+
+  // Emoji shrapnel
+  if (!reducedMotion) {
+    const N = 12;
+    for (let i = 0; i < N; i++) {
+      const angle = (i / N) * Math.PI * 2 + Math.random() * 0.5;
+      const dist  = 60 + Math.random() * 90;
+      const el    = document.createElement('span');
+      el.className   = 'burst-shrapnel';
+      el.textContent = BURST_EMOJIS[Math.floor(Math.random() * BURST_EMOJIS.length)];
+      el.style.left  = x + 'px';
+      el.style.top   = y + 'px';
+      el.style.setProperty('--dx',  (Math.cos(angle) * dist) + 'px');
+      el.style.setProperty('--dy',  (Math.sin(angle) * dist) + 'px');
+      el.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+      container.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+  }
+
+  // Mini splash word
+  const word = document.createElement('div');
+  word.className   = 'burst-word';
+  word.textContent = BURST_WORDS[Math.floor(Math.random() * BURST_WORDS.length)];
+  word.style.left  = x + 'px';
+  word.style.top   = (y - 30) + 'px';
+  container.appendChild(word);
+  word.addEventListener('animationend', () => word.remove());
 }
 
 /* ── Title cycler ── */
@@ -442,4 +493,5 @@ function deactivateBrainrot() {
   document.getElementById('toilet-rain').innerHTML      = '';
   document.getElementById('splash-container').innerHTML = '';
   document.getElementById('multi-doge-ring').innerHTML  = '';
+  document.getElementById('burst-container').innerHTML  = '';
 }
